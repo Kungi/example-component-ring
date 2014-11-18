@@ -10,26 +10,22 @@
   (get-routes [this]))
 
 (defrecord Routes
-    []
+    [handler]
   component/Lifecycle
 
   (start [this]
-    (let [routes (routes
-                  (GET "/" [] "Schnuffel")
-                  (route/not-found "Page not found"))])
+    (let [r (routes
+             (GET "/" [] "Hallo Welt!")
+             (route/not-found "Page not found"))]
 
-    (assoc this :routes routes))
+      (assoc this :handler r)))
 
   (stop [this]
-    (assoc this :routes nil))
+    (assoc this :handler nil)))
 
-  IRoutesDescriber
-  (get-routes [this] (:routes this)))
-
-(defn create-system []
+(defn create-system [config]
   (component/system-map
    :app (map->Routes {})
-
    :http-server (component/using
-                 (jetty-server {:app (get-routes app)} {:port 3000})
+                 (jetty-server {:port 3000})
                  [:app])))
