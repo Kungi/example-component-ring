@@ -4,49 +4,32 @@
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [ring.adapter.jetty :as jetty]
             [com.stuartsierra.component :as component]
+            [ring.component.jetty :refer [jetty-server]]))
 
-            [example-component-ring.core.comcomp
-             :refer [defroutes-with-deps get-routes IRoutesDescriber]]))
+(defprotocol IRoutesDescriber
+  (get-routes [this]))
 
-
-(defroutes-with-deps AppRoutes
-  [schnuff]
-
-  (GET "/" [] "Hello World"))
-
-(defrecord Schnuff
+(defrecord Routes
     []
   component/Lifecycle
 
   (start [this]
-    (assoc this :schnuff :schnuff))
+    (let [routes (routes
+                  (GET "/" [] "Schnuffel")
+                  (route/not-found "Page not found"))])
+
+    (assoc this :routes routes))
 
   (stop [this]
-    (assoc this :schnuff nil)))
+    (assoc this :routes nil))
 
-(defrecord WebappComponent
-    [app-routes]
-  component/Lifecycle
-
-  (start [this]
-    (let [handler
-          (wrap-defaults (get-routes app-routes) site-defaults)]
-
-      (assoc this
-        :http-server (jetty/run-jetty handler {:port 3000 :join? false}))))
-
-  (stop [this]
-    (when-not (nil? (:http-server this))
-      (.stop (:http-server this)))
-
-    (assoc this :http-server nil)))
-
+  IRoutesDescriber
+  (get-routes [this] (:routes this)))
 
 (defn create-system []
   (component/system-map
-   :schnuff (map->Schnuff {})
-   :app-routes (component/using (map->AppRoutes {})
-                                [:schnuff])
+   :app (map->Routes {})
 
-   :web-app (component/using (map->WebappComponent {})
-                             [:app-routes])))
+   :http-server (component/using
+                 (jetty-server {:app (get-routes app)} {:port 3000})
+                 [:app])))
